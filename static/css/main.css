@@ -1,0 +1,35 @@
+.router-link-active{
+    background: lightblue;
+}
+#coin_list, #content, #exchange_list {
+    margin: 0 100px;
+}
+.navbar-default{
+    background: lightskyblue;
+}
+.navbar-brand{
+    font-size: 30px;
+    font-family: 华文隶书;
+    font-weight: bold;
+}
+td img{
+    width: 16px;
+    height: 16px;
+    margin-right: 5px;
+}
+.change {
+    color: red
+}
+.percent {
+    height: 20px;
+    width: 20px;
+    float: left;
+    background-color: lightseagreen;
+
+}
+.navbar {
+    margin-bottom: 5px;
+}
+#chartContainer {
+    margin: 0 100px;
+}

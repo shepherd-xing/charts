@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block contentblock %}
+<!-- TradingView Widget BEGIN -->
+    <div class="tradingview-widget-container">
+      <div id="tradingview_eca50"></div>
+      <div class="tradingview-widget-copyright">
+      </div>
+      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+      <script type="text/javascript">
+          new TradingView.widget(
+              {
+              //"width": 'auto',
+              //"height": 610,
+              "autosize": true,
+              "symbol": "COINBASE:BTCUSD",
+              "interval": "D",
+              "timezone": "Etc/UTC",
+              "theme": "Light",
+              "style": "1",
+              "locale": "zh_CN",
+              "toolbar_bg": "#f1f3f6",
+              "enable_publishing": false,
+              "allow_symbol_change": true,
+              "container_id": "tradingview_eca50"
+            }
+          );
+      </script>
+    </div>
+<!-- TradingView Widget END -->
+
+<script>
+    function setHeight(){
+        var screen_h = innerHeight;
+        var chart_tag = document.getElementById('tradingview_eca50');
+        //var chart_container = document.getElementsByClassName('tradingview-widget-container')[0];
+        chart_tag.style.height = screen_h * 0.85 + 'px';
+    }
+    onload = setHeight;
+    onresize = setHeight;
+</script>
+{% endblock %}

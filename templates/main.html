@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>虚拟货币行情</title>
+    <link rel="stylesheet" href="../static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../static/css/main.css">
+    <link rel="stylesheet" href="../static/css/bootstrap-theme.min.css">
+    <script src="../static/js/vue.min.js"></script>
+    <script src="../static/js/vue-router.min.js"></script>
+    <script src="../static/js/axios.min.js"></script>
+    <script src="../static/js/chart.js"></script>
+    <script src="../static/js/echarts.simple.min.js"></script>
+    <script src="../static/js/echarts-macarons.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="navbar navbar-default" id="header">
+            <div class="container">
+                <div class="navbar-header">
+                    <a href="#" class="navbar-brand">cryptocharts</a>
+                </div>
+            </div>
+        </div>
+
+        <div id="content">
+            <ul class="nav nav-pills">
+                <li><router-link to="/coin">所有货币</router-link></li>
+                <li><router-link to="/exchange">交易所</router-link></li>
+                <li><a href="/chart">图表</a></li>
+            </ul>
+        </div>
+        <router-view></router-view>
+    </div>
+
+
+{#    所有货币列表#}
+    <template id="coin">
+        <div id="coin_list">
+            <form>
+                <div class="form-inline">
+                    <div class="form-group">
+                        <input type="text" class="form-control input-lg" v-model="enter" @keyup="search" placeholder="请输入名称或代号">
+                        <input type="submit" value="搜索" class="btn btn-info" @click="search">
+                    </div>
+                </div>
+            </form>
+            <table class="table table-hover">
+                <thead>
+                <tr>
+                    <th>排名</th>
+                    <th>名称</th>
+                    <th>代号</th>
+                    <th>市值（美元）</th>
+                    <th>价格（美元）</th>
+                    <th>涨跌幅（24小时）</th>
+                    <th>添加到比较</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="(coin, index) in coins" :key="coin.index">
+                    <td>{{ coin['rank'] }}</td>
+                    <td>
+                        <img :src="coin['src']">
+                        <router-link :to="'/coin/' + coin['symbol']">{{ coin['name'] }}</router-link>
+                    </td>
+                    <td><router-link :to="'/coin/' + coin['symbol']">{{ coin['symbol'] }}</router-link></td>
+                    <td>{{ coin['cap'] }}</td>
+                    <td>{{ coin['price'] }}</td>
+                    <td :class="['change']">{{ coin['change'] }}</td>
+                    <td><button @click="toggle" class="btn btn-info">+</button></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+{#交易所列表#}
+    <template id="exchange">
+        <div id="exchange_list">
+            <table class="table table-hover">
+                <thead>
+                <tr>
+                    <th>排名</th>
+                    <th>交易所名字</th>
+                    <th>交易对数量</th>
+                    <th>交易量（24h）</th>
+                    <th>交易量变化（24h）</th>
+                    <th>交易量占比</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="(ex, index) in exchanges" :key="ex.index">
+                    <td v-text="ex['rank']"></td>
+                    <td><img :src="ex['src']"><span v-text="ex['name']"></span></td>
+                    <td v-text="ex['pairs']"></td>
+                    <td v-text="ex['volume']"></td>
+                    <td :class="['change']" v-text="ex['change']"></td>
+                    <td style="padding-right:0;">
+                        <div :class="['percent']"></div>
+                        <span v-text="ex['percent']"></span>%
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+{# coin详情   #}
+    <template id="coin_detail">
+        <div>
+            <div class="col-md-5">
+                <table class="table table-hover table-bordered">
+                    <thead>
+                        <th width="15%">类型</th>
+                        <th style="text-align:center">网站地址</th>
+                    </thead>
+                    <tbody>
+                    <tr v-for="(word, key) in word_obj" :key="word.key">
+                        <td>{{ word }}</td>
+                        <td>
+                        <span v-for="(item, index) in detail[$route.params.symbol][key]" :key="item.index">
+                            <a :href="item" style="color: dodgerblue">
+                                <span v-if="detail[$route.params.symbol][key].length>1">
+                                    站点{{ index+1 }}：</span>{{ item }}
+                            </a><br>
+                        </span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="chartjs_container" class="col-md-5">
+                <canvas id="chart_area"></canvas>
+            </div>
+            <table class="table table-hover table-bordered">
+                <thead>
+                <th width="20%">交易所</th>
+                <th>交易量</th>
+                </thead>
+                <tbody>
+                <tr v-for="(item, index) in forex_ex" :key="item.index">
+                    <td>{{ item['src_code'] }}</td>
+                    <td><div :class="['percent']"></div>{{ item['volume'] }}</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+<script>
+    var data = %% data|tojson %% //flask返回的所有数据
+    var coins = data['coins']
+    var exchanges = data['ex']
+    var coin_detail = data['details']
+    var hills_data = data['hills_data']
+
+    function getData(arr, num){
+            return arr.splice(0, num)
+        }
+
+    function addPercent(){     //计算交易所交易量占比
+            var volumes = exchanges.map(function(item){     //处理成交量格式，转换成数字类型
+                return Number(item['volume'].replace(/[$,]/g, ''))
+            })
+            var total = volumes.reduce(function(p, n){
+                return p + n
+            })
+            for(ex of exchanges){
+                ex['percent'] = (Number(ex['volume'].replace(/[$,]/g, '')) / total * 100).toFixed(2)
+            }
+        }
+    var words = ['Website', 'Explorer', 'Message', 'Chat', 'Code', 'Documentation']
+    var word_obj = {'Website': '主页', 'Explorer': '区块链浏览器', 'Message': '论坛', 'Chat': '社交聊天',
+    'Code': '源代码', 'Documentation': '白皮书'};
+    //子组件
+    var coin_info = {
+        template: '#coin_detail',
+        data(){
+            return {
+                word_obj: word_obj,
+                detail: this.getDetail(words),
+                config: {
+                    type: 'pie',
+                    data: {
+                        datasets: [{
+                            data: [0, '未知'],
+                            backgroundColor: ['lightSeaGreen', 'orange']
+                        }],
+                        labels: ['流通量', '剩余流通量']
+                    },
+                    options: {
+                        responsive: true
+                    }
+                },
+                symbol: this.$route.params.symbol,
+                hills_data: hills_data,
+                forex_ex: null,
+                percents: null
+            }
+        },
+        created(){
+            this.config.data.datasets[0].data[0] = this.getSupplies()['circ']
+            this.config.data.datasets[0].data[1] = this.getSupplies()['remain']
+            this.setExData()
+        },
+        mounted(){
+            this.showChart();
+            this.setColor()
+            //this.showEcharts()
+        },
+        methods: {
+            getArr: function(obj, word){
+                var arr = []
+                for(key in obj){
+                    if(key.indexOf(word) > -1){
+                        arr.push(obj[key])
+                    }
+                }
+                return arr
+            },
+            getDetail: function(words){
+                //var obj = JSON.parse(JSON.stringify(coin_detail))
+                var obj = {}
+                for (symbol in coin_detail){
+                    var obj1 = {}
+                    for (word of words){
+                        obj1[word] = this.getArr(coin_detail[symbol]['links'], word)
+                    }
+                    obj[symbol] = obj1
+                }
+                return obj
+            },
+            showChart: function(){
+                var pieChart = document.getElementById('chart_area').getContext('2d')
+                this.myPie = new Chart(pieChart, this.config)
+            },
+            getSupplies: function(){
+                var supply_obj = coin_detail[this.symbol]['suplies']
+                var supplies = {}
+                for(key in supply_obj){
+                    var regObj = new RegExp(',', 'g')
+                    if(key === 'Circulating Supply'){
+                        supplies['circ'] = parseInt(supply_obj[key].replace(regObj, ''))
+                    }
+                    if(key === 'Total Supply' || key === 'Max Supply'){
+                        supplies['remain'] = parseInt(supply_obj[key].replace(regObj, '')) - supplies['circ']
+                    }
+                    if(Object.keys(supply_obj).length === 1){
+                        supplies['remain'] = 0
+                    }
+                }
+                return supplies
+            },
+            setExData: function(){
+                var symbol = this.$route.params['symbol']
+                var usd_arr = this.hills_data[symbol].filter(function(item){
+                    return item['sec_code'] === 'USD'
+                })
+                usd_arr.sort(function(a, b){
+                    return Number(b['volume']) - Number(a['volume'])
+                })
+                this.forex_ex = usd_arr
+                var volumes = []
+                for (item of usd_arr) {
+                    volumes.push(Number(item['volume']))
+                }
+                var total = volumes.reduce(function(p, n){
+                    return p + n
+                })
+                var percents = volumes.map(function(item){
+                    return (item / total * 100).toFixed(2)
+                })
+                this.percents = percents
+
+            },
+            setColor: function(){
+                var tags = document.getElementsByClassName('percent')
+                for (var i=0; i<this.percents.length; i++) {
+                    document.getElementsByClassName('percent')[i].style.width = this.percents[i] * 13 + 'px'
+                    console.log(document.getElementsByClassName('percent')[i].style.width)
+                }
+            },
+        },
+    }
+    var coin = {
+        template: '#coin',
+        data(){
+            return {
+                items: coins.slice(20),     //滚动加载的列表，整个列表减去初始列表
+                coins: coins.slice(0, 20),     //初始显示20条
+                enter: null,
+            }
+        },
+        created(){
+        },
+        mounted(){
+            this.setColor()
+        },
+        updated(){
+            this.setColor()
+        },
+        methods: {
+            toggle: function(obj){
+                //点击显示
+                var next_tag = obj.target.parentElement.parentElement.nextElementSibling
+                var p_tag = obj.target.parentElement.parentElement.parentElement
+                var new_div = document.createElement('div')
+                new_div.innerText = 'abc'
+                if(obj.target.innerText == '+'){    //显示
+                    obj.target.innerText = '-';
+                    p_tag.insertBefore(new_div, next_tag)
+                }
+                else {      //删除
+                    obj.target.innerText = '+';
+                    p_tag.removeChild(next_tag)
+                }
+            },
+            addItems: function(){
+                this.coins = this.coins.concat(getData(this.items, 10))     //每次滚动添加列表数据
+            },
+            setColor: function(){
+                var change_tags = document.getElementsByClassName('change')   //得到价格变化的元素
+                for(tag of change_tags){
+                    if(Number(tag.innerText.replace('%', '')) < 0 ){
+                        tag.style.color = 'green'
+                    }
+                }
+            },
+            search: function(){
+                if (this.enter === ''){
+                    this.coins = getData(coins.slice(0), 20)
+                }
+                else {
+                    this.coins = coins.filter((item) => {
+                    return item['symbol'].indexOf(this.enter.toUpperCase()) > -1 ||
+                        item['name'].toUpperCase().indexOf(this.enter.toUpperCase()) > -1
+                })
+                }
+            },
+        },
+    }
+
+    var exchange = {
+        template: '#exchange',
+        data(){
+            return {
+                items: exchanges.slice(30),          //滚动要加载的列表，整个列表减去初始列表
+                exchanges: exchanges.slice(0, 30)     //初始显示30条
+            }
+        },
+        beforeCreate(){
+            addPercent()
+        },
+        created(){
+        },
+        mounted(){
+            this.setColor();
+            this.setBar()
+        },
+        updated(){
+            this.setColor();
+            this.setBar()
+        },
+        methods: {
+            getMore: function(){
+                this.exchanges = this.exchanges.concat(getData(this.items, 10))      //滚动加载
+            },
+            setColor(){
+                var change_tags = document.getElementsByClassName('change')
+                for (tag of change_tags){
+                    if (Number(tag.innerText.replace('%', '')) < 0){
+                        tag.style.color = 'green'
+                    }
+                }
+            },
+            setBar: function(){
+                var div_tags = document.getElementsByClassName('percent')
+                for (tag of div_tags){
+                    tag.style.width = Number(tag.nextElementSibling.innerText) * 20 + 'px'
+                }
+            }
+        },
+    }
+
+    var routerObj = new VueRouter({
+        routes: [
+            {path: '/', redirect: '/coin'},
+            {path: '/coin', component: coin},
+            {path: '/exchange', component: exchange},
+            {path: '/coin/:symbol', component: coin_info}
+        ],
+        //linkActiveClass: 'myActive'
+    })
+
+    const app = new Vue({
+        el: '#app',
+        data: {
+
+        },
+        methods: {
+
+        },
+        router: routerObj,
+
+    })
+
+    window.addEventListener('scroll', function () {
+            var scrollTop = document.documentElement.scrollTop || document.body.scrollTop
+            if (scrollTop + window.innerHeight >= document.body.clientHeight) {
+                if(app.$children[2].addItems){
+                    app.$children[2].addItems()
+                }
+                else if(app.$children[2].getMore){
+                    app.$children[2].getMore()
+                }
+            }
+          })
+
+</script>
+</body>
+</html>
