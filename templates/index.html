@@ -5,6 +5,43 @@
     <title>Title</title>
 </head>
 <body>
+<!-- TradingView Widget BEGIN -->
+<div class="tradingview-widget-container">
+    <div class="tradingview-widget-container__widget"></div>
+    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-tickers.js" async>
+        {
+            "symbols": [
+            {
+                "title": "标普500",
+                "proName": "INDEX:SPX"
+            },
+            {
+                "title": "纳斯达克100",
+                "proName": "INDEX:IUXX"
+            },
+            {
+                "description": "道琼斯指数",
+                "proName": "DJ:DJI"
+            },
+            {
+                "description": "比特币",
+                "proName": "COINBASE:BTCUSD"
+            },
+            {
+                "description": "以太币",
+                "proName": "COINBASE:ETHUSD"
+            },
+            {
+                "description": "瑞波币",
+                "proName": "KRAKEN:XRPUSD"
+            }
+        ],
+            "locale": "zh_CN",
+            "linkPageTemplate": "http://127.0.0.1:5000/chart"
+        }
+    </script>
+</div>
+<!-- TradingView Widget END -->
     <div id="app"></div>
 <script type="text/javascript" src="../static/webpack/bundle.js"></script></body>
 </html>
