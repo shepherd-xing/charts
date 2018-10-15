@@ -1,5 +1,5 @@
 from flask import render_template, jsonify
-from coin import get_all_coin_data, save_details, get_details
+from coin import get_all_coin_data, save_details, get_details, timer
 from exchange import get_all_ex, save_ex_content, get_ex_content
 from pprint import pprint
 from config import DEBUG, CustomFlask
@@ -24,7 +24,7 @@ def show_all_coins():
     return jsonify(data)
 @app.route('/api/coindetail')
 def show_coin_detail():
-    #save_details()     #抓取详情页面信息，保存到数据库
+    timer(get_details, save_details)     #抓取详情页面信息，保存到数据库
     details = get_details()         #从数据库取得coin详细信息
     data = {}
     data['details'] = details
@@ -40,7 +40,7 @@ def show_all_ex():
 
 @app.route('/api/exinfo')
 def show_ex_info():
-    #save_ex_content()        #抓取交易所详情页面信息存入数据库
+    timer(get_ex_content, save_ex_content)        #抓取交易所详情页面信息存入数据库
     ex_content = get_ex_content()       #从数据库获取交易所详细信息
     data = {}
     data['ex_content'] = ex_content

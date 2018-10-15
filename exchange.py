@@ -66,7 +66,7 @@ def loop_ex(ex_info, ex_content, ex_names, start, end, length):
         key = ex_names[i]
         url = ex_info[key]['url']
         ex_content[key] = get_ex_info(url)
-        sleep(0.1)
+        sleep(0.5)
 
 def save_ex_content():
     """获取交易所详情页面信息"""
@@ -78,8 +78,8 @@ def save_ex_content():
     s_time = time()
     ex_names = list(ex_info.keys())
     length = len(ex_names)
-    for i in range(0, length, 10):
-        thread_obj = Thread(target=loop_ex, args=(ex_info, ex_content, ex_names, i, i+10, length))
+    for i in range(0, length, 30):
+        thread_obj = Thread(target=loop_ex, args=(ex_info, ex_content, ex_names, i, i+30, length))
         threads.append(thread_obj)
         thread_obj.start()
     for th in threads:

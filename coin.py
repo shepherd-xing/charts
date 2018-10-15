@@ -9,6 +9,7 @@ from time import time, sleep
 from pprint import pprint
 from config import db
 from bson import json_util
+from datetime import datetime
 
 
 def get_rows(url):
@@ -103,7 +104,7 @@ def loop_detail(coin_info, details, symbols, start, end, length):
                 row_info['price'] = cols[4].span.string.strip()
                 trade_info.append(row_info)
         details[symbol]['trade_info'] = trade_info
-        sleep(0.3)
+        sleep(0.5)
 
 def save_details():
     """获取所有的coin的详细信息"""
@@ -115,8 +116,8 @@ def save_details():
     details = {}
     s_time = time()
     threads = []
-    for i in range(0, length, 30):
-        thread_obj = Thread(target=loop_detail, args=(coin_info, details, symbols, i, i+30, length))
+    for i in range(0, length, 40):
+        thread_obj = Thread(target=loop_detail, args=(coin_info, details, symbols, i, i+40, length))
         threads.append(thread_obj)
         thread_obj.start()
     for th in threads:
@@ -124,7 +125,7 @@ def save_details():
     db.coin_detail.delete_many({})
     db.coin_detail.insert(details)  # 保存到数据库
     e_time = time()
-    print('运行时间：{}'.format(e_time-s_time))
+    #print('抓取coin详细信息花费时间：{}'.format(e_time-s_time))
     return details
 
 def get_details():
@@ -133,3 +134,17 @@ def get_details():
     details = loads(json_util.dumps(details))[0]
     details.pop('_id')
     return details
+
+def timer(get_func, save_func):
+    """判断何时抓取数据并存入数据库"""
+    now = datetime.now()
+    minute = now.minute
+    flag = False
+    try:
+        details = get_func()
+    except IndexError:
+        flag = True
+    if flag or minute == 0:
+        save_func()
+        print('保存数据到数据库')
+
