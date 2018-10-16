@@ -1,15 +1,12 @@
 """爬取信息"""
 import requests, os
 from json import loads, dumps
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup as bs
 from threading import Thread
 from time import time, sleep
 from pprint import pprint
 from config import db
 from bson import json_util
-import pymongo
 
 
 def get_rows(url):
