@@ -10,10 +10,10 @@ class CustomFlask(Flask):
 
 DEBUG = True
 
-client = MongoClient()
-db = client.crypto
+URI = 'mongodb://shepherd:wangxing123@ds031847.mlab.com:31847/cryptocharts'
+client = MongoClient(URI)
+db = client.cryptocharts
 coin_detail = db.coin_detail
 coin_info = db.coin_info        #coin的基本信息，symbol，name等
-slugs = db.slugs
 ex_info = db.ex_info            #exchange的基本信息，url， name等
 ex_content = db.ex_content

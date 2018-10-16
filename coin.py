@@ -9,6 +9,7 @@ from time import time, sleep
 from pprint import pprint
 from config import db
 from bson import json_util
+import pymongo
 
 
 def get_rows(url):
@@ -53,6 +54,7 @@ def get_all_coin_data(url, num):
         data['url'] = url.rstrip('/') + cols[1].a.get('href')
         coin_info[info['symbol']] = data
         coins.append(info)
+
     db.coin_info.delete_many({})
     db.coin_info.insert(coin_info)
     return coins
@@ -117,12 +119,13 @@ def save_details():
     details['time'] = last_time
     s_time = time()
     threads = []
-    for i in range(0, length, 40):
-        thread_obj = Thread(target=loop_detail, args=(coin_info, details, symbols, i, i+40, length))
+    for i in range(0, length, 60):
+        thread_obj = Thread(target=loop_detail, args=(coin_info, details, symbols, i, i+60, length))
         threads.append(thread_obj)
         thread_obj.start()
     for th in threads:
         th.join()
+
     db.coin_detail.delete_many({})
     db.coin_detail.insert(details)  # 保存到数据库
     e_time = time()
