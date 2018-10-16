@@ -75,6 +75,8 @@ def save_ex_content():
     ex_info.pop('_id')
     threads = []
     ex_content = {}
+    last_time = time()
+    ex_content['time'] = last_time
     s_time = time()
     ex_names = list(ex_info.keys())
     length = len(ex_names)
