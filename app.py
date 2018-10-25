@@ -1,8 +1,10 @@
 from flask import render_template, jsonify
-from coin import get_all_coin_data, save_details, get_details, timer
+from coin import crawl_all_coin_data, save_details, get_details, timer, get_coin_api_data, get_all_coin_data
 from exchange import get_all_ex, save_ex_content, get_ex_content
 from pprint import pprint
-from config import DEBUG, CustomFlask
+from config import DEBUG, CustomFlask, db, headers
+from json import loads
+from bson import json_util
 
 
 app = CustomFlask(__name__)
@@ -10,6 +12,9 @@ app = CustomFlask(__name__)
 
 base_url = 'https://coinmarketcap.com/'
 ex_url = 'https://coinmarketcap.com/rankings/exchanges/reported/'
+api_coin_list_url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?sort=market_cap&start=1&limit='
+
+crawl_all_coin_data(base_url, 2)    #获取2页的所有coin信息，得到由单个coin信息字典组成的列表
 
 @app.route('/')
 def index():
@@ -18,7 +23,11 @@ def index():
 @app.route('/api/coins')
 def show_all_coins():
     #获取coin信息
-    all_coins = get_all_coin_data(base_url, 2)    #获取2页的所有coin信息，得到由单个coin信息字典组成的列表
+    db_data = db.coin_info.find()     #从数据库获取数据
+    db_data = loads(json_util.dumps(db_data))[0]
+    db_data.pop('_id')
+    api_data = get_coin_api_data(api_coin_list_url, 200)     #从api获取数据， 获取200条数据
+    all_coins = get_all_coin_data(api_data, db_data)
     data = {}
     data['coins'] = all_coins
     return jsonify(data)

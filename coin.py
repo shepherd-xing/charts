@@ -1,13 +1,38 @@
 """爬取信息"""
-import requests, os
-from json import loads, dumps
+import requests
+from json import loads
 from bs4 import BeautifulSoup as bs
 from threading import Thread
 from time import time, sleep
 from pprint import pprint
-from config import db
+from config import db, headers
 from bson import json_util
 
+def get_coin_api_data(url, num):
+    """调用cmc的api得到coin list数据，num表示获取多少条数据"""
+    url = url + str(num)
+    response = requests.get(url, headers=headers).json()
+    data = response['data']
+    return data
+
+def get_all_coin_data(api_data_list, data_base_data):
+    """融合api数据和数据库的数据"""
+    list1 = []
+    for item in api_data_list:
+        obj = {}
+        obj['rank'] = item['cmc_rank']
+        try:
+            obj['icon_src'] = data_base_data[item['symbol']]['icon_src']
+            obj['url'] = data_base_data[item['symbol']]['url']
+        except KeyError:
+            pass
+        obj['name'] = item['name']
+        obj['symbol'] = item['symbol']
+        obj['price'] = item['quote']['USD']['price']
+        obj['cap'] = item['quote']['USD']['market_cap']
+        obj['change'] = round(item['quote']['USD']['percent_change_24h'], 2)
+        list1.append(obj)
+    return list1
 
 def get_rows(url):
     """获取页面上coin列表的信息，每一行表示单个coin的信息，返回一页中所有的coin"""
@@ -30,31 +55,18 @@ def get_coin_rows(url, num):
         url = url.rstrip(str(i))
     return (row for row in rows)
 
-def get_all_coin_data(url, num):
-    """获取所有coin的信息，num表示想要获取多少页，返回一个列表，每一项代表单个coin的信息"""
-    coins = []
+def crawl_all_coin_data(url, num):
+    """爬取所有coin的信息，num表示想要获取多少页，返回一个列表，每一项代表单个coin的信息"""
     coin_info = {}      #存入数据库
     for row in get_coin_rows(url, num):      #把单个coin的信息汇集到一个字典中
-        info = {}
         data = {}
         cols = row.find_all('td')
-        info['rank'] = cols[0].string.strip()
-        info['icon_src'] = cols[1].img.get('data-src') if cols[1].img.get('data-src') else cols[1].img.get('src')
-        info['symbol'] = cols[1].find_all('a')[0].string
-        info['name'] = cols[1].find_all('a')[1].string
-        info['cap'] = cols[2].string.strip()
-        info['price'] = cols[3].a.string
-        info['change'] = cols[6].string
-
-        data['name'] = info['name']
-        data['icon_src'] = info['icon_src']
+        data['icon_src'] = cols[1].img.get('data-src') if cols[1].img.get('data-src') else cols[1].img.get('src')
         data['url'] = url.rstrip('/') + cols[1].a.get('href')
-        coin_info[info['symbol']] = data
-        coins.append(info)
+        coin_info[cols[1].find_all('a')[0].string] = data
 
     db.coin_info.delete_many({})
     db.coin_info.insert(coin_info)
-    return coins
 
 def get_coin_detail(url):
     """获取单个coin详情页面的信息，url为coin详情页面url"""
