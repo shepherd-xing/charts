@@ -13,12 +13,12 @@ def get_coin_api_data(url, num):
     url = url + str(num)
     response = requests.get(url, headers=headers).json()
     data = response['data']
-    return data
+    return (item for item in data)
 
-def get_all_coin_data(api_data_list, data_base_data):
+def get_all_coin_data(url, num, data_base_data):
     """融合api数据和数据库的数据"""
     list1 = []
-    for item in api_data_list:
+    for item in get_coin_api_data(url, num):
         obj = {}
         obj['rank'] = item['cmc_rank']
         try:
@@ -31,6 +31,7 @@ def get_all_coin_data(api_data_list, data_base_data):
         obj['price'] = item['quote']['USD']['price']
         obj['cap'] = item['quote']['USD']['market_cap']
         obj['change'] = round(item['quote']['USD']['percent_change_24h'], 2)
+        obj['id'] = item['id']
         list1.append(obj)
     return list1
 
@@ -57,19 +58,38 @@ def get_coin_rows(url, num):
 
 def crawl_all_coin_data(url, num):
     """爬取所有coin的信息，num表示想要获取多少页，返回一个列表，每一项代表单个coin的信息"""
+    print('爬取coin列表')
     coin_info = {}      #存入数据库
+    last_time = time()
     for row in get_coin_rows(url, num):      #把单个coin的信息汇集到一个字典中
         data = {}
         cols = row.find_all('td')
         data['icon_src'] = cols[1].img.get('data-src') if cols[1].img.get('data-src') else cols[1].img.get('src')
         data['url'] = url.rstrip('/') + cols[1].a.get('href')
         coin_info[cols[1].find_all('a')[0].string] = data
-
+    coin_info['time'] = last_time
     db.coin_info.delete_many({})
     db.coin_info.insert(coin_info)
+    coin_info.pop('time')
+    coin_info.pop('_id')
+    save_details(coin_info)  # 爬取coin详细信息并保存到数据库
+
+def crawl_and_save_coin(url, num):
+    """定时爬取coin数据并保存到数据库"""
+    while True:
+        try:
+            last_time = loads(json_util.dumps(db.coin_info.find()))[0]['time']
+        except (IndexError, KeyError):
+            last_time = time()
+            crawl_all_coin_data(url, num)
+        now_time = time()
+        time_delta = now_time - last_time
+        if time_delta > 7200:
+            crawl_all_coin_data(url, num)
 
 def get_coin_detail(url):
     """获取单个coin详情页面的信息，url为coin详情页面url"""
+    print('爬取coin详细信息')
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) '
                       'Chrome/69.0.3497.100 Safari/537.36',
@@ -99,6 +119,7 @@ def loop_detail(coin_info, details, symbols, start, end, length):
     """分段抓取信息，把详细信息和symbol关联起来"""
     for i in range(start, min(end, length)):
         symbol = symbols[i]
+        print('symbol:', symbol)
         url = coin_info[symbol]['url']
         details[symbol], rows_gen = get_coin_detail(url)
         trade_info = []
@@ -114,13 +135,10 @@ def loop_detail(coin_info, details, symbols, start, end, length):
                 row_info['price'] = cols[4].span.string.strip()
                 trade_info.append(row_info)
         details[symbol]['trade_info'] = trade_info
-        sleep(0.5)
+        sleep(1)
 
-def save_details():
+def save_details(coin_info):
     """获取所有的coin的详细信息"""
-    coin_info = db.coin_info.find()
-    coin_info = loads(json_util.dumps(coin_info))[0]
-    coin_info.pop('_id')
     symbols = list(coin_info.keys())
     length = len(symbols)
     details = {}
@@ -128,8 +146,8 @@ def save_details():
     details['time'] = last_time
     s_time = time()
     threads = []
-    for i in range(0, length, 60):
-        thread_obj = Thread(target=loop_detail, args=(coin_info, details, symbols, i, i+60, length))
+    for i in range(0, length, length):
+        thread_obj = Thread(target=loop_detail, args=(coin_info, details, symbols, i, i+length, length))
         threads.append(thread_obj)
         thread_obj.start()
     for th in threads:
@@ -139,7 +157,6 @@ def save_details():
     db.coin_detail.insert(details)  # 保存到数据库
     e_time = time()
     print('抓取coin详细信息花费时间：{}'.format(e_time-s_time))
-    return details
 
 def get_details():
     """从数据库获取coin详细信息"""
@@ -147,20 +164,4 @@ def get_details():
     details = loads(json_util.dumps(details))[0]
     details.pop('_id')
     return details
-
-def timer(get_func, save_func):
-    """判断何时抓取数据并存入数据库"""
-    last_time = time()
-    now_time = time()
-    flag = False
-    try:
-        details = get_func()
-        last_time = details['time']
-    except IndexError:
-        flag = True
-    time_delta = now_time - last_time
-    print('获取数据相隔时间：{}'.format(time_delta))
-    if flag or time_delta > 10000:
-        save_func()
-        print('保存数据到数据库')
 

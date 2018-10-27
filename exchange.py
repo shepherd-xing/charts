@@ -8,12 +8,15 @@ from config import db
 from json import loads
 from bson import json_util
 
-def get_all_ex(url, base_url):
-    exchanges = []
+def save_all_ex(ex_url, base_url):
+    """爬取交易所信息并保存到数据库"""
+    exchanges = []      #安装交易量排名保存所有交易所信息
     ex_info = {}
-    for row in get_rows(url):
-        ex = {}
-        info = {}
+    ex_listing = {}     #构建一个字典保存排名信息到数据库
+    last_time = time()
+    for row in get_rows(ex_url):
+        ex = {}         #每一个交易所的信息，用于交易所排名
+        info = {}       #每一个交易所的信息，用于爬取各个交易所详细信息
         cols = row.find_all('td')
         ex['rank'] = cols[0].string.strip()
         ex['icon_src'] = cols[1].img.get('data-src') if cols[1].img.get('data-src') else cols[1].img.get('src')
@@ -22,16 +25,40 @@ def get_all_ex(url, base_url):
         ex['pairs'] = cols[5].a.string
         ex['change'] = cols[6].string
         exchanges.append(ex)
+
         info['rank'] = ex['rank']
         info['icon_src'] = ex['icon_src']
         info['url'] = base_url.rstrip('/') + cols[1].a.get('href')
         ex_info[ex['name'].split('.')[0]] = info
-    db.ex_info.delete_many({})
-    db.ex_info.insert(ex_info)
-    return exchanges
+    ex_listing['time'] = last_time
+    ex_listing['ex'] = exchanges
+    db.ex_listing.delete_many({})
+    db.ex_listing.insert(ex_listing)
+    save_ex_content(ex_info)  # 爬取交易所详细信息保存到数据库
+
+def loop_ex_listing(ex_url, base_url):
+    """定时爬取交易所排名信息"""
+    while True:
+        try:
+            last_time = loads(json_util.dumps(db.ex_listing.find()))[0]['time']
+        except (IndexError, KeyError):
+            last_time = time()
+            save_all_ex(ex_url, base_url)
+        now_time = time()
+        time_delta = now_time - last_time
+        if time_delta > 15000:
+            save_all_ex(ex_url, base_url)
+
+def get_all_ex():
+    """从数据库获取交易所排名等信息"""
+    ex_listing = db.ex_listing.find()
+    ex_listing = loads(json_util.dumps(ex_listing))[0]
+    ex_listing.pop('_id')
+    return ex_listing
 
 def get_ex_info(url):
     """获取单个交易所的信息"""
+    print('抓取交易所详细信息')
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0',
         'Connection': 'close'
@@ -66,22 +93,17 @@ def loop_ex(ex_info, ex_content, ex_names, start, end, length):
         key = ex_names[i]
         url = ex_info[key]['url']
         ex_content[key] = get_ex_info(url)
-        sleep(0.5)
+        sleep(2)
 
-def save_ex_content():
+def save_ex_content(ex_info):
     """获取交易所详情页面信息"""
-    ex_info = db.ex_info.find()
-    ex_info = loads(json_util.dumps(ex_info))[0]
-    ex_info.pop('_id')
     threads = []
     ex_content = {}
-    last_time = time()
-    ex_content['time'] = last_time
     s_time = time()
     ex_names = list(ex_info.keys())
     length = len(ex_names)
-    for i in range(0, length, 30):
-        thread_obj = Thread(target=loop_ex, args=(ex_info, ex_content, ex_names, i, i+30, length))
+    for i in range(0, length, length):
+        thread_obj = Thread(target=loop_ex, args=(ex_info, ex_content, ex_names, i, i+length, length))
         threads.append(thread_obj)
         thread_obj.start()
     for th in threads:
@@ -89,8 +111,7 @@ def save_ex_content():
     db.ex_content.delete_many({})
     db.ex_content.insert(ex_content)
     e_time = time()
-    print('抓取交易所信息花费时间：{}'.format(e_time-s_time))
-    return ex_content
+    print('抓取交易所详细信息花费时间：{}'.format(e_time-s_time))
 
 def get_ex_content():
     """从数据库获取交易所详情页面信息"""

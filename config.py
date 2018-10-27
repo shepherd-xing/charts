@@ -16,6 +16,7 @@ db = client.cryptocharts
 coin_detail = db.coin_detail
 coin_info = db.coin_info        #coin的基本信息，symbol，name等
 ex_info = db.ex_info            #exchange的基本信息，url， name等
+ex_listing = db.ex_listing
 ex_content = db.ex_content
 
 APIKEY = '71c79a6d-928a-4400-817d-f2c1d750e925'
