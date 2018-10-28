@@ -37,11 +37,13 @@ def show_all_coins():
     data = {}
     data['coins'] = all_coins
     return jsonify(data)
-@app.route('/api/coindetail')
-def show_coin_detail():
-    details = get_details()         #从数据库取得coin详细信息
+
+@app.route('/api/coins/<symbol>')
+def show_coin(symbol):
+    details = get_details()  # 从数据库取得coin详细信息
+    detail = details[symbol]
     data = {}
-    data['details'] = details
+    data['detail'] = detail
     return jsonify(data)
 
 @app.route('/api/ex')
@@ -49,11 +51,12 @@ def show_all_ex():
     data = get_all_ex()
     return jsonify(data)
 
-@app.route('/api/exinfo')
-def show_ex_info():
-    ex_content = get_ex_content()       #从数据库获取交易所详细信息
+@app.route('/api/ex/<name>')
+def show_ex(name):
+    ex_infos = get_ex_content()  # 从数据库获取交易所详细信息
+    ex_info = ex_infos[name]
     data = {}
-    data['ex_content'] = ex_content
+    data['ex_info'] = ex_info
     return jsonify(data)
 
 @app.route('/stocks')
