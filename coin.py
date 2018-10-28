@@ -89,7 +89,7 @@ def crawl_and_save_coin(url, num):
 
 def get_coin_detail(url):
     """获取单个coin详情页面的信息，url为coin详情页面url"""
-    print('爬取coin详细信息')
+    print('爬取coin详细信息~~~~~~')
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) '
                       'Chrome/69.0.3497.100 Safari/537.36',
@@ -135,7 +135,7 @@ def loop_detail(coin_info, details, symbols, start, end, length):
                 row_info['price'] = cols[4].span.string.strip()
                 trade_info.append(row_info)
         details[symbol]['trade_info'] = trade_info
-        sleep(1)
+        sleep(1.5)
 
 def save_details(coin_info):
     """获取所有的coin的详细信息"""
