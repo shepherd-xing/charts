@@ -135,7 +135,7 @@ def loop_detail(coin_info, details, symbols, start, end, length):
                 row_info['price'] = cols[4].span.string.strip()
                 trade_info.append(row_info)
         details[symbol]['trade_info'] = trade_info
-        sleep(1.5)
+        sleep(2)
 
 def save_details(coin_info):
     """获取所有的coin的详细信息"""

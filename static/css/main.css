@@ -33,3 +33,7 @@ td img{
 #chartContainer {
     margin: 0 auto;
 }
+
+.active {
+    background-color: plum;
+}
