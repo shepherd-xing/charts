@@ -19,8 +19,8 @@ api_coin_list_url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listing
 
 @app.route('/')
 def index():
-    executor.submit(loop_ex_listing, ex_url, base_url)      #定时爬取交易所信息保存到数据库
-    executor.submit(crawl_and_save_coin, base_url, 2)            #定时爬取coin信息并保存到数据库
+    #executor.submit(loop_ex_listing, ex_url, base_url)      #定时爬取交易所信息保存到数据库
+    #executor.submit(crawl_and_save_coin, base_url, 2)            #定时爬取coin信息并保存到数据库
     return render_template('index.html')
 
 @app.route('/api/coins')
